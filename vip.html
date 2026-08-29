@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shourya | Quantum Autonomous Engine</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@300;400;600;800&family=Outfit:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #010206;
+      --cyan-neon: #00f0ff;
+      --purple-neon: #a100ff;
+      --pink-neon: #ff0055;
+      --green-neon: #00ff66;
+      --card-bg: rgba(4, 9, 20, 0.65);
+      --card-border: rgba(0, 240, 255, 0.25);
+      --text-main: #f8fafc;
+      --text-muted: #8094b2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Laser Cursor Tracking Engine */
+    #cursor-dot {
+      position: fixed; width: 6px; height: 6px;
+      background: #fff; border-radius: 50%;
+      pointer-events: none; z-index: 10000;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px #fff, 0 0 20px var(--cyan-neon), 0 0 30px var(--cyan-neon);
+    }
+    #cursor-ring {
+      position: fixed; width: 45px; height: 45px;
+      border: 2px solid var(--cyan-neon); border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+      transition: width 0.2s, height 0.2s, border-color 0.2s;
+    }
+
+    /* Background WebGL Shader Canvas */
+    #shader-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: -2; pointer-events: none;
+    }
+
+    /* Holographic Cyber Grid HUD Lines */
+    .cyber-grid-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.4) 50%),
+                  linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03));
+      background-size: 100% 4px, 6px 100%;
+      z-index: -1; pointer-events: none; opacity: 0.6;
+    }
+
+    /* Cyber Top Header Nav */
+    header {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 1200px; z-index: 1000;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 30px;
+      background: rgba(3, 7, 18, 0.7);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--card-border);
+      border-radius: 50px;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.15);
+    }
+
+    .logo {
+      font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, var(--cyan-neon), var(--purple-neon));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    nav { display: flex; gap: 10px; }
+    nav button {
+      background: transparent; border: 1px solid transparent;
+      color: var(--text-muted); font-family: 'Fira Code', monospace;
+      font-size: 0.85rem; padding: 8px 18px; border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+    nav button.active, nav button:hover {
+      color: var(--cyan-neon);
+      background: rgba(0, 240, 255, 0.1);
+      border-color: var(--card-border);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Pages Management System */
+    .page-wrapper {
+      position: relative; width: 100%; min-height: 100vh;
+      padding-top: 140px; padding-bottom: 80px;
+    }
+
+    .page-container {
+      display: none; opacity: 0; transform: scale(0.95);
+      max-width: 1100px; margin: 0 auto; padding: 0 24px;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .page-container.active-page {
+      display: block; opacity: 1; transform: scale(1);
+    }
+
+    /* Futuristic HUD Glass Cards with Dynamic Lighting */
+    .hud-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px; padding: 36px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      margin-bottom: 24px;
+      transform-style: preserve-3d;
+      transition: border-color 0.4s, box-shadow 0.4s;
+    }
+
+    .hud-card::after {
+      content: ''; position: absolute;
+      top: -50%; left: -50%; width: 200%; height: 200%;
+      background: radial-gradient(circle, rgba(0,240,255,0.1) 0%, transparent 70%);
+      opacity: 0; transition: opacity 0.4s; pointer-events: none;
+    }
+
+    .hud-card:hover::after { opacity: 1; }
+    .hud-card:hover {
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.25);
+    }
+
+    /* Grids & Typography */
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+
+    /* Interactive Matrix Terminal */
+    .terminal-box {
+      background: rgba(2, 4, 10, 0.95);
+      border: 1px solid var(--card-border);
+      border-radius: 16px; font-family: 'Fira Code', monospace;
+      overflow: hidden; box-shadow: 0 0 30px rgba(0,240,255,0.1);
+    }
+    .terminal-bar {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 12px 20px; display: flex; align-items: center; gap: 8px;
+    }
+    .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .term-dot.close { background: #ff5f56; }
+    .term-dot.min { background: #ffbd2e; }
+    .term-dot.max { background: #27c93f; }
+
+    .terminal-content {
+      padding: 24px; min-height: 250px; max-height: 350px;
+      overflow-y: auto; color: var(--cyan-neon); font-size: 0.9rem; line-height: 1.6;
+    }
+    .terminal-input-row {
+      display: flex; align-items: center; gap: 10px; padding: 0 24px 20px 24px;
+    }
+    .terminal-input-row input {
+      background: transparent; border: none; outline: none;
+      color: #fff; font-family: 'Fira Code', monospace; font-size: 0.9rem; flex: 1;
+    }
+
+    /* Floating Audio Player Console */
+    .audio-player-hud {
+      position: fixed; bottom: 30px; right: 30px; z-index: 1000;
+      background: rgba(4, 9, 20, 0.85); backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border); padding: 12px 24px;
+      border-radius: 40px; display: flex; align-items: center; gap: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+    .play-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan-neon), var(--purple-neon));
+      border: none; color: #fff; display: flex; align-items: center;
+      justify-content: center; font-size: 1rem;
+      box-shadow: 0 0 20px rgba(0,240,255,0.5);
+    }
+
+    .cyber-badge {
+      font-family: 'Fira Code', monospace; font-size: 0.78rem;
+      background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--cyan-neon); padding: 6px 14px; border-radius: 8px;
+      display: inline-block; margin: 4px; box-shadow: 0 0 10px rgba(0,240,255,0.1);
+    }
+
+    footer {
+      text-align: center; padding: 30px; font-family: 'Fira Code', monospace;
+      font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--card-border);
+      background: rgba(1, 2, 6, 0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="cursor-dot"></div>
+  <div id="cursor-ring"></div>
+
+  <div class="cyber-grid-overlay"></div>
+
+  <canvas id="shader-canvas"></canvas>
+
+  <header>
+    <div class="logo" onclick="switchPage('home')">
+      <i class="fa-solid fa-atom fa-spin"></i> SHOURYA.QUANTUM
+    </div>
+    <nav>
+      <button class="nav-btn active" onclick="switchPage('home')">// 01 CORE</button>
+      <button class="nav-btn" onclick="switchPage('engineering')">// 02 AI ARCHITECTURE</button>
+      <button class="nav-btn" onclick="switchPage('athletics')">// 03 ATHLETICS</button>
+      <button class="nav-btn" onclick="switchPage('terminal')">// 04 QUANTUM CLI</button>
+    </nav>
+  </header>
+
+  <div class="page-wrapper">
+    
+    <div id="home" class="page-container active-page">
+      <div class="hud-card" style="text-align: center; padding: 80px 30px;">
+        <div class="cyber-badge" style="margin-bottom: 20px;">SYSTEM ARCHITECTURE ONLINE • CLASS 12 STEM SCHOLAR</div>
+        <h1 style="font-family: 'Outfit'; font-size: clamp(3rem, 7vw, 5.5rem); line-height: 1.05; margin-bottom: 20px;">
+          QUANTUM INTELLIGENCE <br>
+          <span style="background: linear-gradient(135deg, var(--cyan-neon), var(--purple-neon), var(--pink-neon)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">& NEURAL COMPUTING</span>
+        </h1>
+        <p style="color: var(--text-muted); max-width: 720px; margin: 0 auto; font-size: 1.15rem; line-height: 1.7;">
+          Scholar, System Architect, and Disciplined All-Rounder Cricket Athlete. Fusing computational physics, mathematical modeling, and neural algorithms into real-time executable software.
+        </p>
+      </div>
+
+      <div class="grid-2">
+        <div class="hud-card tilt-card">
+          <h3 style="font-family: 'Outfit'; font-size: 1.6rem; margin-bottom: 14px;"><i class="fa-solid fa-network-wired" style="color: var(--cyan-neon);"></i> Holographic Radar Analytics</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">Real-time analytical mapping of core technical and domain proficiencies:</p>
+          <div style="display: flex; justify-content: center;">
+            <canvas id="radarChart" width="280" height="280"></canvas>
+          </div>
+        </div>
+
+        <div class="hud-card tilt-card">
+          <h3 style="font-family: 'Outfit'; font-size: 1.6rem; margin-bottom: 14px;"><i class="fa-solid fa-microchip" style="color: var(--purple-neon);"></i> Core Domain Architecture</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; margin-bottom: 16px;">
+            Constructing scalable data pipelines using Python, Pandas, DataFrames, and scientific PyPlot rendering while advancing toward AI/ML neural model deployments.
+          </p>
+          <div style="margin-top: 24px;">
+            <div class="cyber-badge">CBSE Board Exam Target</div>
+            <div class="cyber-badge">PCM Stream</div>
+            <div class="cyber-badge">JEE / NDA Preparation</div>
+            <div class="cyber-badge">Chhattisgarh / UP Roots</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="engineering" class="page-container">
+      <div class="hud-card">
+        <h2 style="font-family: 'Outfit'; font-size: 2.4rem; margin-bottom: 10px;"><i class="fa-solid fa-code" style="color: var(--cyan-neon);"></i> Neural Systems & Computational Physics</h2>
+        <p style="color: var(--text-muted);">Explore specific computational implementations and theoretical domains:</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="hud-card tilt-card">
+          <i class="fa-brands fa-python" style="font-size: 3rem; color: var(--cyan-neon); margin-bottom: 16px;"></i>
+          <h3 style="font-family: 'Outfit'; margin-bottom: 10px;">Python Data Pipelines</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 14px;">
+            High-performance matrix transformations, Pandas DataFrames, Series indexing, and complex data visualization with Matplotlib/PyPlot.
+          </p>
+          <span class="cyber-badge">Pandas</span><span class="cyber-badge">PyPlot</span>
+        </div>
+
+        <div class="hud-card tilt-card">
+          <i class="fa-solid fa-brain" style="font-size: 3rem; color: var(--purple-neon); margin-bottom: 16px;"></i>
+          <h3 style="font-family: 'Outfit'; margin-bottom: 10px;">AI & Machine Learning</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 14px;">
+            Targeting predictive modeling, deep learning architectures, and neural networks to construct autonomous intelligent engines.
+          </p>
+          <span class="cyber-badge">Neural Nets</span><span class="cyber-badge">Algorithms</span>
+        </div>
+
+        <div class="hud-card tilt-card">
+          <i class="fa-solid fa-cubes" style="font-size: 3rem; color: var(--pink-neon); margin-bottom: 16px;"></i>
+          <h3 style="font-family: 'Outfit'; margin-bottom: 10px;">WebGL & Shader Graphics</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 14px;">
+            Designing zero-latency interactive WebGL UI/UX systems using hardware-accelerated GLSL shaders and Unreal Bloom Post-Processing stacks.
+          </p>
+          <span class="cyber-badge">Three.js Shaders</span><span class="cyber-badge">Bloom GLSL</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="athletics" class="page-container">
+      <div class="hud-card">
+        <h2 style="font-family: 'Outfit'; font-size: 2.4rem; margin-bottom: 10px;"><i class="fa-solid fa-trophy" style="color: var(--green-neon);"></i> Athletic Focus & Strategic Performance</h2>
+        <p style="color: var(--text-muted); line-height: 1.7; margin-top: 10px;">
+          Cricket All-Rounder operations: Pacer, Batsman, Wicketkeeper, and Wrist Spinner. Sharpened composure built through critical final-over clutch executions under competition pressure.
+        </p>
+      </div>
+
+      <div class="grid-2">
+        <div class="hud-card tilt-card" style="text-align: center;">
+          <h1 style="font-family: 'Outfit'; font-size: 4rem; color: var(--cyan-neon); margin-bottom: 10px;">4-IN-1</h1>
+          <p style="color: var(--text-muted); font-family: 'Fira Code', monospace;">MULTI-POSITIONAL ATHLETIC ROLES</p>
+        </div>
+        <div class="hud-card tilt-card" style="text-align: center;">
+          <h1 style="font-family: 'Outfit'; font-size: 4rem; color: var(--green-neon); margin-bottom: 10px;">100%</h1>
+          <p style="color: var(--text-muted); font-family: 'Fira Code', monospace;">GAME-WINNING PRESSURE COMPOSURE</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="terminal" class="page-container">
+      <div class="hud-card">
+        <h2 style="font-family: 'Outfit'; font-size: 2.4rem; margin-bottom: 10px;"><i class="fa-solid fa-terminal" style="color: var(--cyan-neon);"></i> Interactive Cyber Console</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Type <code style="color: var(--cyan-neon);">help</code> to view available quantum terminal directives.</p>
+      </div>
+
+      <div class="terminal-box">
+        <div class="terminal-bar">
+          <div class="term-dot close"></div>
+          <div class="term-dot min"></div>
+          <div class="term-dot max"></div>
+          <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">shourya@quantum-core:~</span>
+        </div>
+        <div class="terminal-content" id="terminalOutput">
+          <div>Shourya Quantum Shell [Version 4.0.26]</div>
+          <div>Initializing GLSL WebGL Matrix... Ready. Type <span style="color: #fff;">'help'</span> for command listing.</div>
+        </div>
+        <div class="terminal-input-row">
+          <span style="color: var(--cyan-neon);">$</span>
+          <input type="text" id="terminalInput" placeholder="Enter command..." autofocus>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="audio-player-hud">
+    <button class="play-btn" id="audioToggleBtn"><i class="fa-solid fa-play" id="playIcon"></i></button>
+    <div style="font-family: 'Fira Code', monospace; font-size: 0.8rem;">
+      <span style="color: #fff; display: block; font-weight: 700;">QUANTUM SOUNDSCAPE</span>
+      <small id="audioStatus" style="color: var(--text-muted);">Status: Muted</small>
+    </div>
+  </div>
+
+  <audio id="cyberAudio" loop preload="none">
+    <source src="https://cdn.pixabay.com/download/audio/2021/09/09/audio_1d54b1f7f6.mp3?filename=futuristic-technology-loop-11068.mp3" type="audio/mpeg">
+  </audio>
+
+  <footer>
+    <p>© <span id="year"></span> SHOURYA.QUANTUM — Autonomous Engine</p>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // 1. Dynamic Cursor Tracking System
+    const dot = document.getElementById('cursor-dot');
+    const ring = document.getElementById('cursor-ring');
+    let mouseX = 0, mouseY = 0;
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX; mouseY = e.clientY;
+      gsap.to(dot, { x: mouseX, y: mouseY, duration: 0.05 });
+      gsap.to(ring, { x: mouseX, y: mouseY, duration: 0.25 });
+    });
+
+    // 2. 3D Gyro/Mouse Tilt Card Effect
+    document.querySelectorAll('.tilt-card').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        gsap.to(card, {
+          transform: `perspective(1000px) rotateX(${-y / 15}deg) rotateY(${x / 15}deg) translateZ(10px)`,
+          duration: 0.3
+        });
+      });
+      card.addEventListener('mouseleave', () => {
+        gsap.to(card, { transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)', duration: 0.5 });
+      });
+    });
+
+    // 3. SPA Page Router Logic
+    function switchPage(pageId) {
+      document.querySelectorAll('.page-container').forEach(page => page.classList.remove('active-page'));
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+      const targetPage = document.getElementById(pageId);
+      if(targetPage) {
+        targetPage.classList.add('active-page');
+      }
+
+      const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(
+        btn => btn.getAttribute('onclick').includes(pageId)
+      );
+      if(activeBtn) activeBtn.classList.add('active');
+    }
+
+    // 4. Advanced Three.js WebGL Engine with UNREAL BLOOM Post-Processing
+    const canvas = document.getElementById('shader-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Post-Processing Stack (Bloom)
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      1.5, // Bloom Strength
+      0.4, // Radius
+      0.85 // Threshold
+    );
+
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    // Dynamic Pulsing Geometry Sphere Matrix
+    const geometry = new THREE.IcosahedronGeometry(2.8, 3);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.35
+    });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    // Quantum Particles Ring Field
+    const particlesCount = 2500;
+    const posArray = new Float32Array(particlesCount * 3);
+
+    for(let i = 0; i < particlesCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 18;
+    }
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+    const particlesMaterial = new THREE.PointsMaterial({
+      size: 0.03, color: 0xa100ff, transparent: true, opacity: 0.8
+    });
+
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+
+    camera.position.z = 6;
+
+    // WebGL Render Loop
+    let clock = new THREE.Clock();
+
+    function animateWebGL() {
+      requestAnimationFrame(animateWebGL);
+      let elapsedTime = clock.getElapsedTime();
+
+      sphere.rotation.x = elapsedTime * 0.15;
+      sphere.rotation.y = elapsedTime * 0.2;
+
+      particlesMesh.rotation.y = -elapsedTime * 0.05;
+
+      // Mouse Parallax Physics
+      camera.position.x += ((mouseX / window.innerWidth - 0.5) * 2 - camera.position.x) * 0.05;
+      camera.position.y += (-(mouseY / window.innerHeight - 0.5) * 2 - camera.position.y) * 0.05;
+
+      composer.render();
+    }
+    animateWebGL();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 5. Radar Chart Canvas Renders
+    function drawRadarChart() {
+      const rCanvas = document.getElementById('radarChart');
+      if (!rCanvas) return;
+      const ctx = rCanvas.getContext('2d');
+      const centerX = rCanvas.width / 2;
+      const centerY = rCanvas.height / 2;
+      const radius = 95;
+      const labels = ['Python', 'AI/ML', 'PCM/Math', 'Cricket', 'Shaders'];
+      const values = [0.92, 0.88, 0.95, 0.90, 0.85];
+      const total = labels.length;
+
+      ctx.clearRect(0, 0, rCanvas.width, rCanvas.height);
+
+      for (let r = 0.25; r <= 1; r += 0.25) {
+        ctx.beginPath();
+        for (let i = 0; i < total; i++) {
+          let angle = (i * 2 * Math.PI) / total - Math.PI / 2;
+          let x = centerX + Math.cos(angle) * radius * r;
+          let y = centerY + Math.sin(angle) * radius * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      for (let i = 0; i < total; i++) {
+        let angle = (i * 2 * Math.PI) / total - Math.PI / 2;
+        let x = centerX + Math.cos(angle) * radius * values[i];
+        let y = centerY + Math.sin(angle) * radius * values[i];
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 240, 255, 0.25)';
+      ctx.fill();
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#8094b2';
+      ctx.font = '11px Fira Code';
+      for (let i = 0; i < total; i++) {
+        let angle = (i * 2 * Math.PI) / total - Math.PI / 2;
+        let x = centerX + Math.cos(angle) * (radius + 20) - 15;
+        let y = centerY + Math.sin(angle) * (radius + 20) + 4;
+        ctx.fillText(labels[i], x, y);
+      }
+    }
+    drawRadarChart();
+
+    // 6. Quantum Terminal Shell Commands
+    const terminalInput = document.getElementById('terminalInput');
+    const terminalOutput = document.getElementById('terminalOutput');
+
+    if (terminalInput) {
+      terminalInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const cmd = terminalInput.value.trim().toLowerCase();
+          terminalInput.value = '';
+
+          let res = '';
+          if (cmd === 'help') {
+            res = `Directives:<br>
+            - <span style="color:#fff">about</span>: Background Overview<br>
+            - <span style="color:#fff">skills</span>: Quantum Skill Matrix<br>
+            - <span style="color:#fff">clear</span>: Clear Console Output`;
+          } else if (cmd === 'about') {
+            res = 'Shourya | Class 12 STEM Scholar | Durg, Chhattisgarh & UP roots | AI/ML Architect.';
+          } else if (cmd === 'skills') {
+            res = 'Stack: Python, Pandas DataFrames, PyPlot, Neural Algorithms, Three.js, GLSL Shaders.';
+          } else if (cmd === 'clear') {
+            terminalOutput.innerHTML = '';
+            return;
+          } else {
+            res = `Command '${cmd}' not recognized. Type 'help' for instructions.`;
+          }
+
+          terminalOutput.innerHTML += `<div style="margin-top:10px;"><span style="color:var(--cyan-neon);">$ ${cmd}</span></div><div>${res}</div>`;
+          terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+      });
+    }
+
+    // 7. Audio Controller System
+    const playBtn = document.getElementById('audioToggleBtn');
+    const playIcon = document.getElementById('playIcon');
+    const audioStatus = document.getElementById('audioStatus');
+    const audio = document.getElementById('cyberAudio');
+    let isPlaying = false;
+
+    playBtn.addEventListener('click', () => {
+      if (isPlaying) {
+        audio.pause();
+        playIcon.className = 'fa-solid fa-play';
+        audioStatus.textContent = 'Status: Muted';
+      } else {
+        audio.play().catch(() => {});
+        playIcon.className = 'fa-solid fa-pause';
+        audioStatus.textContent = 'Status: Playing Active';
+      }
+      isPlaying = !isPlaying;
+    });
+  </script>
+</body>
+</html>
